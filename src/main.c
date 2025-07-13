@@ -59,11 +59,14 @@ void populate_regions(process *proc) {
             char *newline = strchr(chptr, '\n');
             reg.pathname = strndup(chptr, newline - chptr);
         }
-        node *cur = malloc(sizeof(node));
-        cur->reg = reg;
-        cur->next = head;
-        head = cur;
-        reg_count++;
+        // TODO: FIX THIS
+        if(!strcmp(reg.pathname, "[stack]") || !strcmp(reg.pathname, "[heap]")) {
+            node *cur = malloc(sizeof(node));
+            cur->reg = reg;
+            cur->next = head;
+            head = cur;
+            reg_count++;
+        }
     }
     fclose(mptr);
     free(line);
@@ -105,17 +108,17 @@ void close_memory_file(process *proc) {
     }
 }
 
-void *find_first_buffern(void *haystack, size_t length, void *buf, size_t n, off_t *offset) {
+off_t find_first_buffern(void *haystack, size_t length, void *buf, size_t n, off_t *offset) {
     void *pos = memmem(haystack + *offset, length - *offset, buf, n);
     *offset += (pos == NULL ? length : pos - haystack + n);
-    return pos;
+    return pos - haystack;
 }
 
-void **find_buffern(process *proc, void *buf, size_t n) {
+off_t *find_buffern(process *proc, void *buf, size_t n) {
     if(proc->mem_file_fd == -1) {
         fprintf(stderr, "[PID: %d] No open memory file", proc->pid);
     }
-    void **out_buffer;
+    off_t *out_buffer;
     out_buffer = malloc(sizeof(void**));
     int count = 0;
     int size = 0;
@@ -124,41 +127,70 @@ void **find_buffern(process *proc, void *buf, size_t n) {
         printf("Length: %ld, ", length);
         //void *reg = mmap(NULL, length, PROT_READ, MAP_SHARED, proc->mem_file_fd, (off_t)proc->regions[i].start);
         off_t offset = (off_t) 0;
-        lseek(proc->mem_file_fd, (off_t)proc->regions[i].start, SEEK_SET);
+        lseek(proc->mem_file_fd, proc->regions[i].start - (void *)0, SEEK_SET);
         void *buffer;
         buffer = malloc(length);
         ssize_t nbytes = read(proc->mem_file_fd, buffer, length);
         while (offset < nbytes) {
-            printf("Offset: %d\n", offset);
-            void *pos = NULL;
+            printf("Offset: %ld\n", offset);
+            off_t pos = -1;
             pos = find_first_buffern(buffer, length, buf, n, &offset);
 
-            if(pos != NULL) {
+            if(pos != -1) {
+                pos += proc->regions[i].start - (void *)0;
                 //return pos;
                 if(count >= size) {
-                    void **temp_buffer = malloc((size + 1) * sizeof(void *));
+                    off_t *temp_buffer = malloc((size + 1) * sizeof(void *));
                     memcpy(temp_buffer, out_buffer, size * sizeof(void *));
                     free(out_buffer);
                     out_buffer = temp_buffer;
                     size++;
                 }
-                printf("Found position at: %llx", pos);
+                printf("Found position at: %lx", pos);
                 out_buffer[count] = pos;
                 count++;
             }
             offset += nbytes;
         }
         for(int i = 0; i < length; i++) {
-            printf("%02X", ((char *)buffer)[i]);
+            //printf("%02X", ((char *)buffer)[i]);
             if((i + 1) % 16 == 0) {
-                printf("\n");
+                //printf("\n");
             }
         }
         free(buffer);
         printf("\nat %llx-%llx\t%s\n\n", proc->regions[i].start, proc->regions[i].end, proc->regions[i].pathname);
     }
-    out_buffer[count] = NULL;
+    out_buffer[count] = -1;
     return out_buffer;
+}
+
+void printn_at(int fd, int n, off_t offset) {
+    char buffer[n+1];
+
+    lseek(fd, offset, SEEK_SET);
+    int ret = read(fd, buffer, n);
+    if(ret == -1) {
+        fprintf(stderr, "Failed to print at: %lx, errno: %d", offset, errno);
+    }
+    buffer[n] = '\0';
+    
+    printf("Printing at offset: %lx, found: %s\n", offset, buffer);
+    for(int i = 0; i < strlen(buffer); i++) {
+        printf("%d ", buffer[i]);
+    }
+}
+
+void writen_to(int fd, void *buffer, int n, off_t offset) {
+    lseek(fd, offset, SEEK_SET);
+    write(fd, buffer, n);
+}
+
+void filter_addrs(off_t *buffer, int *n, off_t *filter, int fn) {
+    int new_count = 0;
+    for(int i = 0; i < *n; i++) {
+        
+    }
 }
 
 
@@ -171,22 +203,31 @@ int main(int argc, char *argv[]) {
     populate_regions(&proc);
     memory_region reg = proc.regions[proc.reg_count - 1];
     printf("%llx-%llx, pathname: %s\n", reg.start, reg.end, reg.pathname);
-    open_memory_file(&proc, O_RDONLY);
+    open_memory_file(&proc, O_RDWR);
 
     char *text = "myinput";
-    void **addrs = find_buffern(&proc, text, strlen(text));
+    off_t *addrs = find_buffern(&proc, text, strlen(text));
     printf("Searched for: %s\nAs ASCII:\n", text);
-    for(int i = 0; i < sizeof(int); i++) {
+    for(int i = 0; i < strlen(text); i++) {
         printf("%d ", text[i]);
     }
     printf("\n");
-    if(addrs[0] == NULL) {
+    if(addrs[0] == -1) {
         printf("Failed to find pattern\n");
     } else {
         printf("Found pattern at addrs:\n");
         int i = 0;
-        while(addrs[i++] != NULL) {
-            printf("Addr: %llx\n", addrs[i-1]);
+        while(addrs[i++] != -1) {
+            printf("Addr: %lx\n", addrs[i-1]);
+            printn_at(proc.mem_file_fd, strlen(text), addrs[i-1]);
+        }
+        char *newtext = "cokolwiek";
+        writen_to(proc.mem_file_fd, newtext, strlen(newtext) + 1, addrs[0]);
+        //writen_to(proc.mem_file_fd, newtext, strlen(newtext), addrs[15]);
+        i = 0;
+        while(addrs[i++] != -1) {
+            printf("Addr: %lx\n", addrs[i-1]);
+            printn_at(proc.mem_file_fd, strlen(text), addrs[i-1]);
         }
     }
     return 0;
