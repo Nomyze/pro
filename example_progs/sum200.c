@@ -17,7 +17,8 @@ int main(void) {
         sum += i;
     }
 
-    printf("Sum: %d, N: %d, text: %s\n", sum, n, text);
+    fgets(str, 20, stdin);
+    printf("Sum: %d, N: %d, text: %s\n", sum, n, str);
     fgets(text, 20, stdin);
     printf("Ended up with: %s", str);
     free(heap);
