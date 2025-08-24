@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
@@ -141,6 +142,9 @@ void close_memory_file(process *proc) {
 off_t find_first_buffern(void *haystack, size_t length, void *buf, size_t n, off_t *offset) {
     void *pos = memmem(haystack + *offset, length - *offset, buf, n);
     *offset += (pos == NULL ? length : pos - haystack + n);
+    if(pos == NULL) {
+        return -1;
+    }
     return pos - haystack;
 }
 
@@ -166,7 +170,7 @@ off_t *find_buffern(process *proc, void *buf, size_t n) {
             off_t pos = -1;
             pos = find_first_buffern(buffer, length, buf, n, &offset);
 
-            if(pos >= -1) {
+            if(pos > -1) {
                 pos += proc->regions[i].start - (void *)0;
                 //return pos;
                 if(count >= size) {
@@ -182,7 +186,7 @@ off_t *find_buffern(process *proc, void *buf, size_t n) {
             }
             offset += nbytes;
         }
-        for(int i = 0; i < length; i++) {
+        for(size_t i = 0; i < length; i++) {
             //printf("%02X", ((char *)buffer)[i]);
             if((i + 1) % 16 == 0) {
                 //printf("\n");
@@ -206,7 +210,7 @@ void printn_at(int fd, int n, off_t offset) {
     buffer[n] = '\0';
     
     printf("Printing at offset: %lx, found: %s\n", offset, buffer);
-    for(int i = 0; i < strlen(buffer); i++) {
+    for(size_t i = 0; i < strlen(buffer); i++) {
         printf("%d ", buffer[i]);
     }
     printf("\n");
@@ -220,8 +224,9 @@ void writen_to(int fd, void *buffer, int n, off_t offset) {
 int filter_addrs(off_t *buffer, int n, off_t *filter, int fn, off_t *filtered) {
     int filtered_count = 0;
     for (int i = 0; i < fn; i++) {
-        off_t *_off;
-        if (0 >= find_first_buffern(buffer, sizeof(off_t) * n, filter + i, sizeof(off_t), _off)) {
+        off_t _off = 0;
+        printf("Searching: %lx with %lx\n", (unsigned long)buffer, (unsigned long)*(filter + i));
+        if (0 <= find_first_buffern(buffer, sizeof(off_t) * n, filter + i, sizeof(off_t), &_off)) {
             filtered[filtered_count] = filter[i];
             filtered_count += 1;
         }

@@ -8,20 +8,20 @@
 
 int main(int argc, char *argv[]) {
     // Flags if any - later
-    
-    // 
+    if(argc < 2) {
+        return 0;
+    } 
     process proc = {};
     bind_proc_by_name(&proc, argv[1]);
-    //proc.pid = atoi(argv[1]);
     populate_regions(&proc);
     memory_region reg = proc.regions[proc.reg_count - 1];
-    printf("%llx-%llx, pathname: %s\n", reg.start, reg.end, reg.pathname);
+    printf("%llx-%llx, pathname: %s\n", (long long unsigned int)reg.start, (long long unsigned int)reg.end, reg.pathname);
     open_memory_file(&proc, O_RDWR);
 
-    char *text = "myinput";
+    char *text = "myinput2";
     off_t *addrs = find_buffern(&proc, text, strlen(text));
     printf("Searched for: %s\nAs ASCII:\n", text);
-    for(int i = 0; i < strlen(text); i++) {
+    for(size_t i = 0; i < strlen(text); i++) {
         printf("%d ", text[i]);
     }
     printf("\n");
@@ -51,17 +51,20 @@ int main(int argc, char *argv[]) {
         }
 
         char *newtext = "cokolwiek";
-        //writen_to(proc.mem_file_fd, newtext, strlen(newtext) + 1, addrs[0]);
-        //writen_to(proc.mem_file_fd, newtext, strlen(newtext), addrs[15]);
         for(i = 0; i < filtered_count; i++) {
-            printf("Filtered Addr: %lx\n", filtered[i-1]);
-            printn_at(proc.mem_file_fd, strlen(newtext - 1), filtered[i-1]);
+            printf("Filtered Addr: %lx\n", filtered[i]);
+            printf("Writing to found addr(%lx) with data: %s\n", filtered[i], newtext);
+            writen_to(proc.mem_file_fd, newtext, strlen(newtext) + 1, filtered[i]);
+            printn_at(proc.mem_file_fd, strlen(newtext), filtered[i]);
         }
+        /*
         printf("i == %d\n", i);
         if(i == 1) {
-            printf("Writing to found addr with data: %s\n", newtext);
-            writen_to(proc.mem_file_fd, newtext, strlen(newtext) + 1, addrs[0]);
+            printf("Writing to found addr(%lx) with data: %s\n", filtered[0], newtext);
+            writen_to(proc.mem_file_fd, newtext, strlen(newtext) + 1, filtered[0]);
+            printn_at(proc.mem_file_fd, strlen(newtext), filtered[0]);
         }
+        */
     }
     return 0;
 }
