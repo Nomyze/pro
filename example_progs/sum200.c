@@ -11,6 +11,7 @@ int main(void) {
     char *heap;
     heap = malloc(sizeof(char) * 20);
     strcpy(heap, text);
+    char str2[20] = "minput";
     char str[20];
     fgets(str, 20, stdin);
     for(int i = 0; i < n; i++) {
@@ -18,7 +19,7 @@ int main(void) {
     }
 
     fgets(str, 20, stdin);
-    printf("Sum: %d, N: %d, text: %s\n", sum, n, str);
+    printf("Sum: %d, N: %d, text1: %s, text2: %s\n", sum, n, str, str2);
     fgets(text, 20, stdin);
     printf("Ended up with: %s", str);
     free(heap);

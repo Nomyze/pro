@@ -21,9 +21,11 @@ typedef struct node {
 } node;
 
 
+void bind_proc_by_name(process* proc, char* str);
 void populate_regions(process *proc);
 void open_memory_file(process *proc, int flags);
 void close_memory_file(process *proc);
+
 
 off_t find_first_buffern(void *haystack, size_t length, void *buf, size_t n, off_t *offset);
 off_t *find_buffern(process *proc, void *buf, size_t n);

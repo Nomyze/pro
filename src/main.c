@@ -1,7 +1,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 
@@ -12,7 +11,8 @@ int main(int argc, char *argv[]) {
     
     // 
     process proc = {};
-    proc.pid = atoi(argv[1]);
+    bind_proc_by_name(&proc, argv[1]);
+    //proc.pid = atoi(argv[1]);
     populate_regions(&proc);
     memory_region reg = proc.regions[proc.reg_count - 1];
     printf("%llx-%llx, pathname: %s\n", reg.start, reg.end, reg.pathname);
@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
             if(addrs2[0] != -1) {
                 int j = 0;
                 while(addrs2[j++] != -1) {
-                    printf("Filter Addr: %lx\n", addrs2[i-1]);
+                    printf("Filter Addr: %lx\n", addrs2[j-1]);
                     printn_at(proc.mem_file_fd, strlen(text2), addrs2[j-1]);
                 }
                 filtered_count = filter_addrs(addrs, size, addrs2, j-1, filtered);
@@ -55,11 +55,11 @@ int main(int argc, char *argv[]) {
         //writen_to(proc.mem_file_fd, newtext, strlen(newtext), addrs[15]);
         for(i = 0; i < filtered_count; i++) {
             printf("Filtered Addr: %lx\n", filtered[i-1]);
-            printn_at(proc.mem_file_fd, strlen(newtext), filtered[i-1]);
+            printn_at(proc.mem_file_fd, strlen(newtext - 1), filtered[i-1]);
         }
         printf("i == %d\n", i);
         if(i == 1) {
-            printf("Writing to found addr with data: %s", newtext);
+            printf("Writing to found addr with data: %s\n", newtext);
             writen_to(proc.mem_file_fd, newtext, strlen(newtext) + 1, addrs[0]);
         }
     }

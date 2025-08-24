@@ -5,9 +5,54 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <dirent.h>
+#include <ctype.h>
 
 #include "proc.h"
 
+int is_number(const char *str) {
+    if(*str == '\0') return 0;
+    while(*str) {
+        if(!isdigit(*str)) return 0;
+        str++;
+    }
+    return 1;
+}
+void bind_proc_by_name(process* proc, char* str) {
+    DIR *d_proc;
+    d_proc = opendir("/proc/");
+    if(d_proc == NULL) {
+        fprintf(stderr, "Failed to open /proc directory\n");
+        exit(EXIT_FAILURE);
+    }
+    struct dirent* entry;
+    while ((entry = readdir(d_proc)) != NULL) {
+        if(!is_number(entry->d_name)) {
+            continue;
+        }
+        char *comm_path;
+        size_t needed;
+        needed = snprintf(NULL, 0, "/proc/%s/comm", entry->d_name);
+        comm_path = (char *)malloc(needed + 1);
+        snprintf(comm_path, needed + 1, "/proc/%s/comm", entry->d_name);
+        FILE *comm_file;
+        comm_file = fopen(comm_path, "r");
+        if(comm_file == NULL) {
+            fprintf(stderr, "Failed to open proc %s comm file\n", entry->d_name);
+        } 
+        else {
+            char *line;
+            size_t n = 0;
+            ssize_t read = getline(&line, &n, comm_file);
+            line[read - 1] = '\0';
+            if(strcmp(str, line) == 0) {
+                printf("Got: %s\n", entry->d_name);
+                proc->pid = atoi(entry->d_name);                
+                return;
+            }
+        }
+    }
+}
 void populate_regions(process *proc) {
     char *mapspath;
     size_t nneeded;
@@ -17,6 +62,7 @@ void populate_regions(process *proc) {
 
     FILE *mptr;
     mptr = fopen(mapspath, "r");
+    free(mapspath);
     if(mptr == NULL) {
         fprintf(stderr, "Failed to open maps file\n");
         exit(EXIT_FAILURE);
@@ -108,7 +154,7 @@ off_t *find_buffern(process *proc, void *buf, size_t n) {
     int size = 0;
     for(int i = 0; i < proc->reg_count; i++) {
         size_t length = proc->regions[i].end - proc->regions[i].start + 1;
-        printf("Length: %ld, ", length);
+        //printf("Length: %ld, ", length);
         //void *reg = mmap(NULL, length, PROT_READ, MAP_SHARED, proc->mem_file_fd, (off_t)proc->regions[i].start);
         off_t offset = (off_t) 0;
         lseek(proc->mem_file_fd, proc->regions[i].start - (void *)0, SEEK_SET);
@@ -116,7 +162,7 @@ off_t *find_buffern(process *proc, void *buf, size_t n) {
         buffer = malloc(length);
         ssize_t nbytes = read(proc->mem_file_fd, buffer, length);
         while (offset < nbytes) {
-            printf("Offset: %ld\n", offset);
+            //printf("Offset: %ld\n", offset);
             off_t pos = -1;
             pos = find_first_buffern(buffer, length, buf, n, &offset);
 
@@ -130,7 +176,7 @@ off_t *find_buffern(process *proc, void *buf, size_t n) {
                     out_buffer = temp_buffer;
                     size++;
                 }
-                printf("Found position at: %lx", pos);
+                printf("Found position at: %lx\n", pos);
                 out_buffer[count] = pos;
                 count++;
             }
@@ -143,7 +189,7 @@ off_t *find_buffern(process *proc, void *buf, size_t n) {
             }
         }
         free(buffer);
-        printf("\nat %llx-%llx\t%s\n\n", proc->regions[i].start, proc->regions[i].end, proc->regions[i].pathname);
+        //printf("\nat %llx-%llx\t%s\n\n", proc->regions[i].start, proc->regions[i].end, proc->regions[i].pathname);
     }
     out_buffer[count] = -1;
     return out_buffer;
@@ -163,6 +209,7 @@ void printn_at(int fd, int n, off_t offset) {
     for(int i = 0; i < strlen(buffer); i++) {
         printf("%d ", buffer[i]);
     }
+    printf("\n");
 }
 
 void writen_to(int fd, void *buffer, int n, off_t offset) {
