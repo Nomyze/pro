@@ -11,7 +11,7 @@ typedef struct memory_region {
 typedef struct process {
     unsigned int pid;
     int mem_file_fd;
-    int reg_count;
+    size_t reg_count;
     memory_region *regions;
 } process;
 
@@ -28,7 +28,11 @@ void close_memory_file(process *proc);
 
 
 off_t find_first_buffern(void *haystack, size_t length, void *buf, size_t n, off_t *offset);
-off_t *find_buffern(process *proc, void *buf, size_t n);
-void printn_at(int fd, int n, off_t offset);
-void writen_to(int fd, void *buffer, int n, off_t offset);
-int filter_addrs(off_t *buffer, int n, off_t *filter, int fn, off_t *filtered);
+void find_buffern(process *proc, void *buf, size_t n, off_t **out_off, size_t *size);
+void find_int32_t(process *proc, int32_t val, off_t **out_off, size_t *size);
+void printn_at(process *proc, int n, off_t offset);
+void writen_to(process *proc, void *buffer, int n, off_t offset);
+void write_int32_t_to(process *proc, int32_t val, off_t offset);
+
+int filter_addrs(off_t *buffer, size_t n, off_t *filter, size_t fn, off_t *filtered);
+void destroy_proc(process *proc);

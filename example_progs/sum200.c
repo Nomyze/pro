@@ -14,7 +14,7 @@ int main(void) {
     char str2[20] = "myinput";
     char* str;
     str = (char*)malloc(sizeof(char) * 20);
-    fgets(str, 20, stdin);
+    fgets(str2, 20, stdin);
     for(int i = 0; i < n; i++) {
         sum += i;
     }
