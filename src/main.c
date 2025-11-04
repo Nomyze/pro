@@ -76,6 +76,7 @@ void inter(process *proc) {
         }
     }
 }
+
 int main(int argc, char *argv[]) {
     // Flags if any - later
     if(argc < 2) {
@@ -84,8 +85,8 @@ int main(int argc, char *argv[]) {
     process proc = {};
     bind_proc_by_name(&proc, argv[1]);
     populate_regions(&proc);
-    memory_region reg = proc.regions[proc.reg_count - 1];
-    printf("%llx-%llx, pathname: %s\n", (long long unsigned int)reg.start, (long long unsigned int)reg.end, reg.pathname);
+    //memory_region reg = proc.regions[proc.reg_count - 1];
+    //printf("%llx-%llx, pathname: %s\n", (long long unsigned int)reg.start, (long long unsigned int)reg.end, reg.pathname);
     open_memory_file(&proc, O_RDWR);
     
     if(strcmp(argv[1], "sum200.o") == 0) {
@@ -93,7 +94,6 @@ int main(int argc, char *argv[]) {
     } else if(strcmp(argv[1], "inter.o") == 0) {
         inter(&proc);
     }
-    printf("Reg_count: %zu\n", proc.reg_count);
     destroy_proc(&proc);
     return 0;
 }
